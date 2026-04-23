@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SkillCat Slide Reviewer</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,400;0,500&family=DM+Sans:wght@300;400;500;600&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#F7F5F0;--surface:#fff;--border:#E2DDD6;--text:#1C1917;--muted:#78716C;
+  --accent:#F05523;--accent-soft:#FEF0EB;
+  --crit:#DC2626;--crit-soft:#FEF2F2;--crit-border:#FECACA;
+  --basic:#2563EB;--basic-soft:#EFF6FF;--basic-border:#BFDBFE;
+  --pass:#16A34A;--pass-soft:#F0FDF4;
+  --warn:#D97706;--warn-soft:#FFFBEB;
+  --sans:'DM Sans',sans-serif;--mono:'DM Mono',monospace;
+}
+body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:100vh;font-size:15px;line-height:1.6}
+.shell{display:grid;grid-template-columns:360px 1fr;grid-template-rows:52px 1fr;height:100vh;overflow:hidden}
+/* topbar */
+.topbar{grid-column:1/-1;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 20px;gap:10px}
+.logo{font-size:15px;font-weight:600}.logo em{color:var(--accent);font-style:normal}
+.topbar-sep{width:1px;height:18px;background:var(--border)}
+.topbar-sub{font-size:13px;color:var(--muted)}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--pass);margin-left:auto;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+/* left */
+.left{border-right:1px solid var(--border);background:var(--surface);display:flex;flex-direction:column;overflow:hidden}
+.left-head{padding:18px 20px 14px;border-bottom:1px solid var(--border);flex-shrink:0}
+.left-head h2{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px}
+.left-head p{font-size:13px;color:var(--muted);line-height:1.5}
+.fmt{margin:12px 20px 0;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-family:var(--mono);font-size:11.5px;color:var(--muted);line-height:1.9}
+.fmt strong{color:var(--text)}
+.input-wrap{flex:1;padding:14px 20px;display:flex;flex-direction:column;gap:10px;overflow:hidden;min-height:0}
+textarea{flex:1;width:100%;border:1.5px solid var(--border);border-radius:10px;padding:11px 13px;font-family:var(--mono);font-size:12px;line-height:1.7;color:var(--text);background:var(--bg);resize:none;outline:none;transition:border-color .15s;min-height:0}
+textarea:focus{border-color:var(--accent)}
+textarea::placeholder{color:#C5BDB5}
+.type-row{display:flex;gap:8px;align-items:center;flex-shrink:0}
+.type-row label{font-size:12px;color:var(--muted);white-space:nowrap}
+.type-row select{flex:1;padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-family:var(--sans);font-size:13px;color:var(--text);background:var(--surface);outline:none;cursor:pointer}
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:11px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-family:var(--sans);font-size:14px;font-weight:600;cursor:pointer;transition:background .1s;flex-shrink:0}
+.btn:hover{background:#d44518}.btn:disabled{background:#DDD;color:#999;cursor:not-allowed}
+.spin{width:15px;height:15px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:none}
+@keyframes spin{to{transform:rotate(360deg)}}
+/* right */
+.right{overflow-y:auto;padding:22px 26px;display:flex;flex-direction:column;gap:16px}
+.empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:var(--muted);gap:12px;padding:60px 20px}
+.empty-icon{font-size:44px;opacity:.35}
+.empty h3{font-size:17px;font-weight:600;color:var(--text)}
+.empty p{font-size:13.5px;max-width:320px;line-height:1.6}
+/* overview */
+.overview{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 20px;display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.ov-stat{display:flex;flex-direction:column}
+.ov-val{font-size:22px;font-weight:700;line-height:1}
+.ov-lbl{font-size:11px;color:var(--muted);margin-top:3px}
+.ov-sep{width:1px;height:34px;background:var(--border)}
+/* card */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+.card.has-crit{border-left:3px solid var(--crit)}
+.card.has-basic{border-left:3px solid var(--basic)}
+.card.all-pass{border-left:3px solid var(--pass)}
+.card-head{padding:14px 18px;display:flex;align-items:flex-start;gap:10px;cursor:pointer;user-select:none}
+.card-head:hover{background:#FAFAF8}
+.slide-badge{font-family:var(--mono);font-size:11px;color:var(--muted);background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:2px 8px;flex-shrink:0;margin-top:3px}
+.card-text{flex:1;min-width:0}
+.card-title{font-size:14px;font-weight:600;color:var(--text);margin-bottom:2px}
+.card-preview{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card-badges{display:flex;gap:5px;align-items:center;flex-shrink:0}
+.pill{font-size:11px;font-weight:700;padding:2px 9px;border-radius:20px}
+.pill-pass{background:var(--pass-soft);color:var(--pass)}
+.pill-warn{background:var(--warn-soft);color:var(--warn)}
+.pill-crit{background:var(--crit-soft);color:var(--crit)}
+.chev{font-size:11px;color:#CCC;transition:transform .2s;flex-shrink:0;margin-top:4px}
+.chev.open{transform:rotate(180deg)}
+.card-body{display:none;padding:0 18px 18px;border-top:1px solid var(--border)}
+.card-body.open{display:block}
+/* verdict */
+.verdict{background:var(--bg);border:1px solid var(--border);border-radius:9px;padding:13px 15px;margin:14px 0;font-size:13.5px;line-height:1.65;color:var(--text)}
+.verdict-lbl{font-size:10px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.08em;margin-bottom:5px}
+/* issues */
+.sec-lbl{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:9px}
+.issue{border:1px solid var(--border);border-radius:9px;overflow:hidden;margin-bottom:7px}
+.issue.crit{border-color:var(--crit-border)}
+.issue.basic{border-color:var(--basic-border)}
+.issue-top{display:flex;align-items:center;gap:8px;padding:8px 12px}
+.issue-top.crit-bg{background:var(--crit-soft)}
+.issue-top.basic-bg{background:var(--basic-soft)}
+.issue-icon{font-size:12px;flex-shrink:0}
+.issue-lbl{flex:1;font-size:13px;font-weight:500}
+.issue-tag{font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px}
+.tag-crit{background:var(--crit-soft);color:var(--crit)}
+.tag-basic{background:var(--basic-soft);color:var(--basic)}
+.issue-detail{padding:10px 12px;background:var(--surface);border-top:1px solid var(--border)}
+.issue-why{font-size:12.5px;color:#555;line-height:1.6;margin-bottom:8px}
+.issue-fix{background:var(--basic-soft);border-left:3px solid var(--basic);border-radius:0 6px 6px 0;padding:8px 11px}
+.fix-lbl{font-size:10px;font-weight:700;color:var(--basic);text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px}
+.fix-txt{font-size:12.5px;color:var(--text);line-height:1.6}
+/* rewrite */
+.rewrite{margin-top:13px;border:1px solid #FDE68A;border-radius:9px;overflow:hidden}
+.rewrite-head{background:var(--warn-soft);padding:8px 12px;font-size:11px;font-weight:700;color:var(--warn);text-transform:uppercase;letter-spacing:.07em}
+.rewrite-body{padding:11px 12px;font-size:13px;color:var(--text);line-height:1.7;background:var(--surface);font-family:var(--mono);white-space:pre-wrap;word-break:break-word}
+/* skeleton */
+.skel-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px;display:flex;flex-direction:column;gap:9px}
+.skel{background:linear-gradient(90deg,#EEE 25%,#F5F5F5 50%,#EEE 75%);background-size:200% 100%;animation:shimmer 1.4s infinite;border-radius:5px;height:13px}
+.skel.h20{height:20px}.skel.h50{height:50px}.skel.w30{width:30%}.skel.w60{width:60%}.skel.w80{width:80%}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+.err-card{background:var(--crit-soft);border:1px solid var(--crit-border);border-radius:12px;padding:14px 18px;font-size:13px;color:var(--crit)}
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="topbar">
+    <div class="logo"><em>Skill</em>Cat</div>
+    <div class="topbar-sep"></div>
+    <div class="topbar-sub">Slide Reviewer</div>
+    <div class="dot"></div>
+  </div>
+
+  <div class="left">
+    <div class="left-head">
+      <h2>Paste your slides</h2>
+      <p>Copy directly from your spreadsheet — Title then Content, repeated for each slide.</p>
+    </div>
+    <div class="fmt">
+      <strong>Understanding Thermostat Wiring</strong><br>
+      As a new HVAC technician...<br><br>
+      <strong>Follow Labels, Not Colors</strong><br>
+      Let's start with one important rule...
+    </div>
+    <div class="input-wrap">
+      <textarea id="pasteInput" placeholder="Paste your slides here...&#10;&#10;Title&#10;Content&#10;&#10;Title&#10;Content"></textarea>
+      <div class="type-row">
+        <label>Course type:</label>
+        <select id="courseType">
+          <option value="both">Both / Not sure</option>
+          <option value="static">Informational (Static)</option>
+          <option value="instructional">Instructional</option>
+        </select>
+      </div>
+      <button class="btn" id="reviewBtn">
+        <span class="spin" id="spin"></span>
+        <span id="btnTxt">Review All Slides →</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="right" id="rightPanel">
+    <div class="empty" id="emptyState">
+      <div class="empty-icon">📋</div>
+      <h3>Ready to review</h3>
+      <p>Paste your slides on the left — Title followed by Content for each slide — then hit Review.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+const CHECKLIST = [
+  {cat:'Slide Structure',   text:"Is the sheet named correctly according to the course?",                                                                    type:'Basic',    s:true, i:true},
+  {cat:'Slide Structure',   text:"Are the learning objectives clear, concise, and written from the learner's perspective (3-5 bullet points)?",              type:'Basic',    s:true, i:true},
+  {cat:'Slide Structure',   text:"Does every slide's content directly correspond to the learning objectives of the topic?",                                  type:'Critical', s:true, i:true},
+  {cat:'Slide Structure',   text:"Is the topic concise, with fewer than 10 slides of valuable content?",                                                     type:'Critical', s:true, i:true},
+  {cat:'Slide Structure',   text:"Does the final slide include a clear summary or takeaway?",                                                                 type:'Basic',    s:true, i:true},
+  {cat:'Slide Structure',   text:"Is there a transition when new concepts are introduced?",                                                                   type:'Basic',    s:true, i:true},
+  {cat:'Engagement',        text:"Does the script begin with a relatable hook or real-world scenario?",                                                       type:'Critical', s:false,i:false},
+  {cat:'Engagement',        text:"Did you use analogies or everyday examples to simplify complex ideas?",                                                     type:'Basic',    s:true, i:true},
+  {cat:'Language Quality',  text:"Has the text passed a spell check?",                                                                                        type:'Basic',    s:true, i:true},
+  {cat:'Language Quality',  text:"Is all text grammatically correct?",                                                                                        type:'Critical', s:true, i:true},
+  {cat:'Language Quality',  text:"Is the language easy to understand and free from complicated or technical words?",                                          type:'Critical', s:true, i:true},
+  {cat:'Language Quality',  text:"Are the sentences short, clear, and interesting to read?",                                                                  type:'Basic',    s:true, i:true},
+  {cat:'Language Quality',  text:"Did you remove any extra words, repeated ideas, or too much detail?",                                                       type:'Critical', s:true, i:true},
+  {cat:'Language Quality',  text:"Have you avoided filler phrases and passive voice?",                                                                        type:'Critical', s:false,i:false},
+  {cat:'Tone',              text:"Is the tone friendly and respectful, without sounding bossy or rude?",                                                      type:'Critical', s:true, i:true},
+  {cat:'Tone',              text:"Did you write in a way that speaks directly to the learner?",                                                               type:'Critical', s:true, i:true},
+  {cat:'Tone',              text:"Have you avoided assuming the learner already knows something (no phrases like As you know or Recall that)?",               type:'Critical', s:true, i:true},
+  {cat:'Readability',       text:"Have you defined abbreviations and acronyms upon first use?",                                                               type:'Basic',    s:true, i:true},
+  {cat:'Readability',       text:"Is the reading level appropriate for a 10th-12th grade audience?",                                                         type:'Basic',    s:true, i:true},
+  {cat:'Instructional Flow',text:"Have you broken down complex concepts into smaller, easy-to-understand parts?",                                             type:'Critical', s:true, i:true},
+  {cat:'Instructional Flow',text:"Is there a logical progression of topics from basic to advanced concepts?",                                                 type:'Critical', s:true, i:true},
+  {cat:'Instructional Flow',text:"Have you created clear transition points between related concepts?",                                                        type:'Basic',    s:true, i:true},
+  {cat:'Instructional Flow',text:"Have you organized sub-topics and learning objectives logically within each topic?",                                        type:'Critical', s:true, i:true},
+  {cat:'Instructional Flow',text:"Is each topic independent (no references to other topics)?",                                                               type:'Critical', s:true, i:true},
+  {cat:'Instructional Flow',text:"Have you avoided phrases like In the next topic and In the previous topic?",                                               type:'Basic',    s:true, i:true},
+  {cat:'Content Accuracy',  text:"Are all calculations and technical specifications double-checked?",                                                         type:'Critical', s:true, i:true},
+  {cat:'Content Accuracy',  text:"Does each slide explain why the content matters for job performance, safety, or efficiency?",                               type:'Basic',    s:true, i:true},
+  {cat:'Content Accuracy',  text:"Are real-world examples or scenarios used to illustrate concepts?",                                                         type:'Critical', s:true, i:true},
+  {cat:'Content Accuracy',  text:"Are you focusing on the how rather than just the why, prioritizing practical applications?",                               type:'Critical', s:true, i:true},
+  {cat:'Content Accuracy',  text:"Have you identified opportunities to reference content from HVAC School or Love2HVAC?",                                    type:'Critical', s:true, i:true},
+  {cat:'Content Accuracy',  text:"Have you included industry-specific context where appropriate?",                                                            type:'Basic',    s:true, i:true},
+];
+
+// ── PARSE: handles "Title\nContent\n\nTitle\nContent" format from spreadsheet paste
+function parseSlides(raw) {
+  // Normalize line endings
+  const text = raw.replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim();
+  const lines = text.split('\n');
+  
+  const slides = [];
+  let i = 0;
+  
+  while (i < lines.length) {
+    const line = lines[i].trim();
+    if (!line) { i++; continue; }
+    
+    // Title is any short line (under 100 chars) that doesn't look like body content
+    // Body content follows immediately after
+    const isTitle = line.length < 100 && !line.endsWith(',') && !line.endsWith(';');
+    
+    if (isTitle) {
+      const title = line;
+      const contentLines = [];
+      i++;
+      // Collect content until we hit another short line (next title) or end
+      while (i < lines.length) {
+        const next = lines[i].trim();
+        if (!next) { i++; continue; }
+        // If this looks like another title (short, not sentence-ending), stop
+        if (next.length < 100 && !next.endsWith('.') && !next.endsWith('?') && !next.endsWith('!') && !next.endsWith(',') && contentLines.length > 0) {
+          break;
+        }
+        contentLines.push(next);
+        i++;
+      }
+      if (contentLines.length > 0) {
+        slides.push({ title: title, content: contentLines.join(' ') });
+      }
+    } else {
+      i++;
+    }
+  }
+  return slides;
+}
+
+function getChecks(courseType) {
+  return CHECKLIST.filter(function(c) {
+    if (courseType === 'static') return c.s;
+    if (courseType === 'instructional') return c.i;
+    return true;
+  });
+}
+
+async function callClaude(prompt) {
+  const resp = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 1500,
+      messages: [{ role: 'user', content: prompt }]
+    })
+  });
+  if (!resp.ok) throw new Error('API ' + resp.status);
+  const data = await resp.json();
+  const txt = data.content.map(function(b) { return b.text || ''; }).join('');
+  const cleaned = txt.replace(/```json|```/g, '').trim();
+  try {
+    return JSON.parse(cleaned);
+  } catch(e) {
+    // Robust fallback: extract fields manually if JSON is malformed
+    const summary = (cleaned.match(/"summary"\s*:\s*"((?:[^"\\]|\\.)*)"/s) || [])[1] || 'Could not parse summary.';
+    const score = parseInt((cleaned.match(/"score"\s*:\s*(\d+)/) || [])[1] || '50');
+    const rewrite = (cleaned.match(/"rewrite"\s*:\s*"((?:[^"\\]|\\.)*)"/) || [])[1] || '';
+    // Extract issues array as raw text and parse each one
+    const issuesMatch = cleaned.match(/"issues"\s*:\s*\[([\s\S]*?)\]\s*[,}]/);
+    const issues = [];
+    if (issuesMatch) {
+      const issueBlocks = issuesMatch[1].split(/\},\s*\{/);
+      for (const block of issueBlocks) {
+        const criterion = (block.match(/"criterion"\s*:\s*"((?:[^"\\]|\\.)*)"/) || [])[1];
+        const type = (block.match(/"type"\s*:\s*"(Critical|Basic)"/) || [])[1];
+        const category = (block.match(/"category"\s*:\s*"((?:[^"\\]|\\.)*)"/) || [])[1];
+        const problem = (block.match(/"problem"\s*:\s*"((?:[^"\\]|\\.)*)"/) || [])[1];
+        const fix = (block.match(/"fix"\s*:\s*"((?:[^"\\]|\\.)*)"/) || [])[1];
+        if (criterion && type) {
+          issues.push({
+            criterion: criterion || '',
+            type: type || 'Basic',
+            category: category || '',
+            problem: problem || '',
+            fix: fix || ''
+          });
+        }
+      }
+    }
+    return { summary, score, issues, rewrite };
+  }
+}
+
+function buildPrompt(slide, idx, total, allTitles, courseType) {
+  const checks = getChecks(courseType);
+  const list = checks.map(function(c, n) {
+    return (n+1) + '. [' + c.type + '][' + c.cat + '] ' + c.text;
+  }).join('\n');
+
+  return 'You are a senior SkillCat instructional designer reviewing HVAC training slides.\n\n' +
+    'SLIDE ' + idx + ' OF ' + total + '\n' +
+    'Title: ' + slide.title + '\n' +
+    'Content: ' + slide.content + '\n\n' +
+    'ALL SLIDES IN THIS TOPIC: ' + allTitles.join(' | ') + '\n\n' +
+    'CHECKLIST TO EVALUATE AGAINST:\n' + list + '\n\n' +
+    'RULES:\n' +
+    '- Learning objectives live at the topic level, not per slide. Do NOT flag missing learning objectives per slide.\n' +
+    '- Only flag criteria that genuinely fail for this specific slide content.\n' +
+    '- Be specific — quote the exact problematic text.\n' +
+    '- Skip criteria that are not applicable to a single slide (e.g. topic slide count).\n\n' +
+    'IMPORTANT: Your response must be valid JSON. Escape all apostrophes and quotes inside string values with a backslash. Do not use curly quotes. Return ONLY raw JSON, no markdown fences:\n' +
+    '{"summary":"2-3 sentence honest verdict","score":0-100,"issues":[{"criterion":"exact text from checklist","type":"Critical or Basic","category":"category","problem":"specific problem quoting the text","fix":"concrete fix"}],"rewrite":"improved content string or empty string"}';
+}
+
+function skeletonHTML(n) {
+  return '<div class="skel-card" id="sk' + n + '"><div class="skel w30 h20"></div><div class="skel w60"></div><div class="skel w80 h50"></div></div>';
+}
+
+function renderCard(slide, res, n) {
+  const crits = res.issues.filter(function(x) { return x.type === 'Critical'; });
+  const basics = res.issues.filter(function(x) { return x.type !== 'Critical'; });
+  const sc = res.score >= 75 ? 'pill-pass' : res.score >= 45 ? 'pill-warn' : 'pill-crit';
+  const cardCls = crits.length ? 'has-crit' : basics.length ? 'has-basic' : 'all-pass';
+
+  let badges = '<span class="pill ' + sc + '">' + res.score + '%</span>';
+  if (crits.length) badges += '<span class="pill pill-crit">' + crits.length + ' critical</span>';
+  if (basics.length) badges += '<span class="pill pill-warn">' + basics.length + ' basic</span>';
+  if (!res.issues.length) badges += '<span class="pill pill-pass">✓ Pass</span>';
+
+  const issuesHTML = res.issues.map(function(iss) {
+    return '<div class="issue ' + (iss.type === 'Critical' ? 'crit' : 'basic') + '">' +
+      '<div class="issue-top ' + (iss.type === 'Critical' ? 'crit-bg' : 'basic-bg') + '">' +
+        '<span class="issue-icon">' + (iss.type === 'Critical' ? '✗' : '⚠') + '</span>' +
+        '<span class="issue-lbl">' + iss.criterion + '</span>' +
+        '<span class="issue-tag ' + (iss.type === 'Critical' ? 'tag-crit' : 'tag-basic') + '">' + iss.type + '</span>' +
+      '</div>' +
+      '<div class="issue-detail">' +
+        '<div class="issue-why">' + iss.problem + '</div>' +
+        '<div class="issue-fix"><div class="fix-lbl">How to fix</div><div class="fix-txt">' + iss.fix + '</div></div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+
+  const rewriteHTML = res.rewrite ? '<div class="rewrite"><div class="rewrite-head">✏ Suggested rewrite</div><div class="rewrite-body">' + res.rewrite + '</div></div>' : '';
+  const issLbl = res.issues.length ? res.issues.length + ' issue' + (res.issues.length > 1 ? 's' : '') + ' to fix' : '✓ All checks passed';
+  const issLblColor = res.issues.length ? '' : 'color:var(--pass)';
+
+  return '<div class="card ' + cardCls + '" id="cd' + n + '">' +
+    '<div class="card-head" data-n="' + n + '">' +
+      '<div class="slide-badge">Slide ' + n + '</div>' +
+      '<div class="card-text">' +
+        '<div class="card-title">' + slide.title + '</div>' +
+        '<div class="card-preview">' + slide.content.substring(0, 80) + '…</div>' +
+      '</div>' +
+      '<div class="card-badges">' + badges + '</div>' +
+      '<span class="chev open" id="chev' + n + '">▾</span>' +
+    '</div>' +
+    '<div class="card-body open" id="bd' + n + '">' +
+      '<div class="verdict"><div class="verdict-lbl">AI verdict</div>' + res.summary + '</div>' +
+      '<div class="sec-lbl" style="' + issLblColor + '">' + issLbl + '</div>' +
+      issuesHTML + rewriteHTML +
+    '</div>' +
+  '</div>';
+}
+
+function toggleCard(n) {
+  const bd = document.getElementById('bd' + n);
+  const ch = document.getElementById('chev' + n);
+  if (!bd) return;
+  const isOpen = bd.classList.contains('open');
+  bd.classList.toggle('open', !isOpen);
+  ch.classList.toggle('open', !isOpen);
+}
+
+// ── wire up after DOM ready
+document.addEventListener('DOMContentLoaded', function() {
+  document.getElementById('reviewBtn').addEventListener('click', runReview);
+  document.getElementById('rightPanel').addEventListener('click', function(e) {
+    const h = e.target.closest('.card-head');
+    if (h) toggleCard(h.dataset.n);
+  });
+});
+
+async function runReview() {
+  const raw = document.getElementById('pasteInput').value.trim();
+  if (!raw) { alert('Paste your slides first.'); return; }
+
+  const slides = parseSlides(raw);
+  if (!slides.length) { alert('Could not parse any slides. Make sure each slide has a short title line followed by content.'); return; }
+
+  const courseType = document.getElementById('courseType').value;
+  const btn = document.getElementById('reviewBtn');
+  const spin = document.getElementById('spin');
+  const txt = document.getElementById('btnTxt');
+
+  btn.disabled = true;
+  spin.style.display = 'block';
+  txt.textContent = 'Reviewing ' + slides.length + ' slides…';
+
+  const panel = document.getElementById('rightPanel');
+  panel.innerHTML = '';
+  slides.forEach(function(_, i) { panel.innerHTML += skeletonHTML(i + 1); });
+
+  const allTitles = slides.map(function(s) { return s.title; });
+  let critTotal = 0, basicTotal = 0, scoreSum = 0, count = 0;
+
+  for (let i = 0; i < slides.length; i++) {
+    txt.textContent = 'Slide ' + (i+1) + ' of ' + slides.length + '…';
+    try {
+      const prompt = buildPrompt(slides[i], i+1, slides.length, allTitles, courseType);
+      const res = await callClaude(prompt);
+      critTotal += res.issues.filter(function(x) { return x.type === 'Critical'; }).length;
+      basicTotal += res.issues.filter(function(x) { return x.type !== 'Critical'; }).length;
+      scoreSum += res.score;
+      count++;
+      const el = document.getElementById('sk' + (i+1));
+      if (el) el.outerHTML = renderCard(slides[i], res, i+1);
+    } catch(err) {
+      const el = document.getElementById('sk' + (i+1));
+      if (el) el.outerHTML = '<div class="err-card">⚠ Slide ' + (i+1) + ' error: ' + err.message + '</div>';
+    }
+  }
+
+  const avg = count ? Math.round(scoreSum / count) : 0;
+  const avgColor = avg >= 75 ? 'pass' : avg >= 45 ? 'warn' : 'crit';
+  const ov = document.createElement('div');
+  ov.className = 'overview';
+  ov.innerHTML =
+    '<div class="ov-stat"><div class="ov-val">' + slides.length + '</div><div class="ov-lbl">Slides</div></div>' +
+    '<div class="ov-sep"></div>' +
+    '<div class="ov-stat"><div class="ov-val" style="color:var(--' + avgColor + ')">' + avg + '%</div><div class="ov-lbl">Avg score</div></div>' +
+    '<div class="ov-sep"></div>' +
+    '<div class="ov-stat"><div class="ov-val" style="color:var(--crit)">' + critTotal + '</div><div class="ov-lbl">Critical issues</div></div>' +
+    '<div class="ov-sep"></div>' +
+    '<div class="ov-stat"><div class="ov-val" style="color:var(--basic)">' + basicTotal + '</div><div class="ov-lbl">Basic issues</div></div>';
+  panel.insertBefore(ov, panel.firstChild);
+
+  btn.disabled = false;
+  spin.style.display = 'none';
+  txt.textContent = 'Review All Slides →';
+}
+</script>
+</body>
+</html>
