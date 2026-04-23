@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SkillCat Quality Review</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1a1a1a;background:#f5f5f2;min-height:100vh}
+.topbar{background:#fff;border-bottom:1px solid #e5e5e0;padding:0 2rem;height:56px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:10}
+.logo{font-size:15px;font-weight:600;color:#1a1a1a}
+.logo span{color:#F05523}
+.topbar-right{margin-left:auto;font-size:13px;color:#888}
+.main{max-width:960px;margin:0 auto;padding:2rem 1.5rem}
+.header{margin-bottom:2rem}
+.header h1{font-size:26px;font-weight:600;margin-bottom:6px}
+.header p{font-size:15px;color:#666}
+.card{background:#fff;border-radius:12px;border:1px solid #e5e5e0;margin-bottom:1.5rem;overflow:hidden}
+.card-pad{padding:1.5rem}
+.upload-zone{border:2px dashed #d0d0c8;border-radius:10px;padding:2.5rem;text-align:center;cursor:pointer;transition:all 0.15s;background:#fafaf8}
+.upload-zone:hover,.upload-zone.drag{border-color:#F05523;background:#fff7f4}
+.upload-icon{font-size:36px;margin-bottom:10px}
+.upload-zone h3{font-size:16px;font-weight:600;margin-bottom:6px}
+.upload-zone p{font-size:14px;color:#888;margin-bottom:12px}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 18px;border-radius:8px;border:1px solid #d0d0c8;background:#fff;color:#1a1a1a;font-size:14px;font-weight:500;cursor:pointer;transition:all 0.1s}
+.btn:hover{background:#f5f5f2;border-color:#bbb}
+.btn-primary{background:#F05523;color:#fff;border-color:#d44518}
+.btn-primary:hover{background:#d44518}
+.file-info{font-size:13px;color:#888;margin-top:10px}
+.section-label{font-size:11px;font-weight:600;color:#999;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:10px}
+.topic-select select{width:100%;padding:9px 12px;border:1px solid #d0d0c8;border-radius:8px;background:#fff;color:#1a1a1a;font-size:14px;font-weight:500;cursor:pointer}
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:1.5rem}
+.metric{background:#fafaf8;border:1px solid #e5e5e0;border-radius:10px;padding:14px 16px}
+.metric-label{font-size:12px;color:#888;margin-bottom:5px}
+.metric-val{font-size:24px;font-weight:600}
+.metric-val.pass{color:#2d7a3a}
+.metric-val.warn{color:#b86e00}
+.metric-val.fail{color:#c0392b}
+.progress-bar{height:4px;border-radius:2px;background:#e5e5e0;margin-top:8px}
+.progress-fill{height:100%;border-radius:2px;transition:width 0.4s}
+.progress-fill.high{background:#2d7a3a}
+.progress-fill.medium{background:#e6a817}
+.progress-fill.low{background:#c0392b}
+.filters{display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap;align-items:center}
+.filter-label{font-size:13px;color:#888}
+.filter-btn{padding:6px 14px;border-radius:20px;border:1px solid #d0d0c8;background:#fff;font-size:13px;cursor:pointer;color:#555;transition:all 0.1s}
+.filter-btn:hover{border-color:#F05523;color:#F05523}
+.filter-btn.active{border-color:#F05523;color:#F05523;background:#fff7f4;font-weight:500}
+.slides-list{display:flex;flex-direction:column;gap:8px}
+.slide-card{background:#fff;border:1px solid #e5e5e0;border-radius:10px;overflow:hidden;transition:box-shadow 0.1s}
+.slide-card:hover{box-shadow:0 2px 8px rgba(0,0,0,0.06)}
+.slide-card.has-issues{border-left:4px solid #c0392b}
+.slide-card.warnings{border-left:4px solid #e6a817}
+.slide-card.good{border-left:4px solid #2d7a3a}
+.slide-header{display:flex;align-items:center;gap:10px;padding:12px 14px;cursor:pointer;user-select:none}
+.slide-num{font-size:12px;font-weight:600;color:#aaa;min-width:58px;font-family:monospace}
+.slide-title{flex:1;font-size:14px;font-weight:600;color:#1a1a1a}
+.slide-preview{flex:2;font-size:13px;color:#999;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.badges{display:flex;gap:5px;align-items:center;flex-shrink:0}
+.badge{font-size:11px;padding:3px 9px;border-radius:20px;font-weight:600;white-space:nowrap}
+.badge-pass{background:#e8f5ea;color:#2d7a3a}
+.badge-warn{background:#fef3e2;color:#b86e00}
+.badge-crit{background:#fdecea;color:#c0392b}
+.chevron{font-size:11px;color:#bbb;transition:transform 0.2s;flex-shrink:0}
+.chevron.open{transform:rotate(180deg)}
+.slide-details{display:none;padding:0 14px 14px;border-top:1px solid #f0f0ea}
+.slide-details.open{display:block}
+.empty-state{text-align:center;padding:3rem 1rem;color:#aaa}
+.empty-state p{font-size:15px}
+#appContent{display:none}
+.score-ring{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:50%;font-size:13px;font-weight:700}
+.score-ring.high{background:#e8f5ea;color:#2d7a3a}
+.score-ring.medium{background:#fef3e2;color:#b86e00}
+.score-ring.low{background:#fdecea;color:#c0392b}
+
+/* Course health */
+.course-health-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;margin-bottom:14px}
+.health-topic-card{border-radius:8px;padding:12px 14px;border-left:3px solid;background:#fafaf8;cursor:pointer;transition:box-shadow 0.1s}
+.health-topic-card:hover{box-shadow:0 2px 8px rgba(0,0,0,0.07)}
+.health-topic-card.good{border-color:#2d7a3a}
+.health-topic-card.warn{border-color:#b86e00}
+.health-topic-card.bad{border-color:#c0392b}
+.health-topic-name{font-size:12px;font-weight:600;color:#555;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.health-topic-score{font-size:22px;font-weight:700;margin-bottom:3px}
+.health-topic-score.good{color:#2d7a3a}
+.health-topic-score.warn{color:#b86e00}
+.health-topic-score.bad{color:#c0392b}
+.health-topic-issue{font-size:11px;color:#888;line-height:1.4}
+.course-summary-box{background:#fafaf8;border-radius:8px;padding:12px 14px;font-size:13px;color:#555;line-height:1.6;border:1px solid #eee}
+.course-summary-box strong{color:#1a1a1a}
+
+/* Topic coherence */
+.coherence-alert{background:#fffbf0;border:1px solid #f0d890;border-radius:8px;padding:12px 14px;margin-bottom:12px;font-size:13px;color:#7a5800;line-height:1.5}
+.coherence-alert strong{color:#5a3f00}
+.coherence-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.coherence-item{background:#fafaf8;border-radius:8px;padding:10px 12px;border:1px solid #eee}
+.coherence-item-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#aaa;margin-bottom:5px}
+.coherence-item-val{font-size:12px;color:#333;line-height:1.5}
+.coh-warn{color:#b86e00}
+.coh-good{color:#2d7a3a}
+.coh-bad{color:#c0392b}
+
+/* New check blocks with feedback */
+.checks-section{margin-top:14px}
+.checks-section-label{font-size:11px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px}
+.check-block{border:1px solid #eee;border-radius:8px;overflow:hidden;margin-bottom:6px}
+.check-block.fail-crit{border-color:#f0c0b8}
+.check-block.fail-basic{border-color:#f0d8a0}
+.check-top{display:flex;align-items:center;gap:8px;padding:9px 12px}
+.check-top.pass-top{background:#f2fbf3}
+.check-top.fail-top-crit{background:#fdecea}
+.check-top.fail-top-basic{background:#fef3e2}
+.check-icon-v2{font-size:13px;min-width:14px}
+.check-label-v2{flex:1;font-size:13px;font-weight:500;color:#1a1a1a}
+.check-label-v2.muted{color:#888;font-weight:400}
+.check-type-tag{font-size:10px;padding:2px 7px;border-radius:4px;font-weight:700}
+.check-type-tag.critical{background:#fdecea;color:#c0392b}
+.check-type-tag.basic{background:#e8f0fb;color:#2255aa}
+.check-feedback{padding:10px 12px;background:#fff;border-top:1px solid #f5f0ea}
+.feedback-why{font-size:12px;color:#555;line-height:1.55;margin-bottom:8px}
+.feedback-fix{background:#f5f8ff;border-radius:6px;padding:8px 10px;border-left:3px solid #5590dd}
+.feedback-fix-label{font-size:10px;font-weight:700;color:#2255aa;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:5px}
+.feedback-fix-text{font-size:12px;color:#1a1a1a;line-height:1.6;font-style:italic}
+.content-preview-box{background:#fafaf8;border-radius:8px;padding:10px 12px;font-size:13px;color:#666;margin-top:6px;max-height:90px;overflow:hidden;line-height:1.5;border:1px solid #f0f0ea}
+
+@media(max-width:600px){
+  .metrics{grid-template-columns:repeat(2,1fr)}
+  .slide-preview{display:none}
+  .topbar{padding:0 1rem}
+  .main{padding:1rem}
+  .coherence-grid{grid-template-columns:1fr}
+  .course-health-grid{grid-template-columns:repeat(2,1fr)}
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo"><span>Skill</span>Cat Quality Review</div>
+  <div class="topbar-right">v2.0 — Final Slides Checker</div>
+</div>
+
+<div class="main">
+  <div class="header">
+    <h1>Course Quality Review</h1>
+    <p>Upload a course spreadsheet to check every slide against the SkillCat master checklist.</p>
+  </div>
+
+  <div class="card">
+    <div class="card-pad">
+      <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
+        <div class="upload-icon">📋</div>
+        <h3>Upload your course spreadsheet</h3>
+        <p>Supports .xlsx files exported from Google Sheets — one row per slide</p>
+        <button class="btn btn-primary" onclick="event.stopPropagation();document.getElementById('fileInput').click()">Choose file</button>
+        <div class="file-info" id="fileInfo"></div>
+      </div>
+      <input type="file" id="fileInput" accept=".xlsx,.csv,.xls" style="display:none">
+    </div>
+  </div>
+
+  <div id="appContent">
+
+    <!-- COURSE HEALTH PANEL -->
+    <div class="card" id="courseHealthCard">
+      <div class="card-pad">
+        <div class="section-label">Course health — all topics</div>
+        <div class="course-health-grid" id="courseHealthGrid"></div>
+        <div class="course-summary-box" id="courseSummaryBox"></div>
+      </div>
+    </div>
+
+    <!-- TOPIC SELECTOR -->
+    <div class="card">
+      <div class="card-pad">
+        <div class="section-label">Select topic to review</div>
+        <div class="topic-select">
+          <select id="topicSelect" onchange="renderTopic()"></select>
+        </div>
+      </div>
+    </div>
+
+    <!-- TOPIC METRICS -->
+    <div class="metrics" id="metrics"></div>
+
+    <!-- TOPIC COHERENCE PANEL -->
+    <div class="card" id="coherenceCard">
+      <div class="card-pad">
+        <div class="section-label">Topic coherence</div>
+        <div id="coherenceContent"></div>
+      </div>
+    </div>
+
+    <!-- SLIDE FILTERS + LIST -->
+    <div class="filters" id="filtersRow">
+      <span class="filter-label">Show:</span>
+      <button class="filter-btn active" onclick="setFilter('all',this)">All slides</button>
+      <button class="filter-btn" onclick="setFilter('issues',this)">Has issues</button>
+      <button class="filter-btn" onclick="setFilter('critical',this)">Critical fails only</button>
+      <button class="filter-btn" onclick="setFilter('pass',this)">Passed only</button>
+    </div>
+
+    <div class="slides-list" id="slidesList"></div>
+    <div class="empty-state" id="emptyState" style="display:none"><p>No slides match this filter.</p></div>
+  </div>
+</div>
+
+<script>
+const CHECKS = [
+  {
+    id:'title', label:'Slide has a clear title', type:'Critical',
+    test: s => !!(s.Title||'').trim() && (s.Title||'').trim().length > 3,
+    why: (s) => `The title field is ${!(s.Title||'').trim() ? 'completely empty' : 'too short (under 4 characters)'}. Every slide needs a descriptive title so learners know what they're about to learn.`,
+    fix: () => `Write a plain, specific title that names the concept — e.g. "How a Digital Thermostat Controls Temperature" rather than leaving it blank or writing "Slide 5".`
+  },
+  {
+    id:'content', label:'Content field is not empty', type:'Critical',
+    test: s => !!(s.Content||'').trim() && (s.Content||'').trim().length > 20,
+    why: (s) => `Content field is ${!(s.Content||'').trim() ? 'completely empty' : 'under 20 characters — too short to teach anything'}. There's nothing for the learner to read.`,
+    fix: () => `Write at least 2–3 full sentences explaining the concept. Aim for 150–400 characters of clear, jargon-light instruction.`
+  },
+  {
+    id:'content_len', label:'Content is not excessively long (under 1200 characters)', type:'Basic',
+    test: s => !(s.Content) || (s.Content||'').trim().length <= 1200,
+    why: (s) => `This slide has ${(s.Content||'').trim().length} characters — well over the 1,200 limit. That's too much to absorb on one screen. Cognitive overload reduces retention.`,
+    fix: () => `Split into two slides. Put the core concept on this slide, and move examples or secondary detail to a follow-up slide. Each slide should teach one thing.`
+  },
+  {
+    id:'no_as_you_know', label:'Avoids "As you know" / "Recall that" phrases', type:'Critical',
+    test: s => !/(as you know|recall that|as we know)/i.test((s.Content||'')+(s.Title||'')),
+    why: (s) => `Found a phrase like "as you know" or "recall that" in the content. These phrases assume the learner already knows the material — which makes the slide feel condescending and skippable.`,
+    fix: () => `Delete the phrase entirely. The content should stand on its own. If you're referencing earlier material, link to it explicitly: "In Topic 1, we covered X — here's how it applies to Y."`
+  },
+  {
+    id:'no_next_prev', label:'No "In the next/previous topic" cross-references', type:'Basic',
+    test: s => !/(in the next topic|in the previous topic)/i.test(s.Content||''),
+    why: () => `Found a forward or backward reference like "in the next topic" or "in the previous topic." Course order can change during production — these break or confuse learners.`,
+    fix: () => `Remove the reference. Each slide should be self-contained. If context is needed, restate it briefly inline rather than pointing elsewhere.`
+  },
+  {
+    id:'graphic_def', label:'Graphic definition / specification is filled in', type:'Critical',
+    test: s => (s['Graphic Definition / Specification']||s['Graphic Definition']||'').trim().length > 10,
+    why: (s) => `The graphic definition field is ${!(s['Graphic Definition / Specification']||s['Graphic Definition']||'').trim() ? 'empty' : 'too brief (under 10 characters)'}. Without this, the designer has no direction and will guess — or leave a placeholder.`,
+    fix: () => `Describe what the visual should show: type (photo, diagram, illustration, video still), subject, any callouts or labels, and a timestamp if referencing a video. E.g. "Diagram of digital thermostat internals with callouts for LCD screen, thermistor, and control board."`
+  },
+  {
+    id:'learning_obj', label:'Learning objective is present', type:'Basic',
+    test: s => (s['Objective Text']||s['Learning Objective']||'').trim().length > 5,
+    why: () => `No learning objective detected. Without one, there's no anchor for what the learner should walk away knowing or be able to do.`,
+    fix: () => `Add a measurable objective starting with an action verb. E.g. "Identify the three main components of a digital thermostat and describe the role of each."`
+  },
+  {
+    id:'no_long_sent', label:'No overly long single sentences (250+ characters)', type:'Basic',
+    test: s => { if(!s.Content) return true; return !s.Content.split(/[.!?]/).some(sen => sen.trim().length > 250); },
+    why: (s) => {
+      const bad = (s.Content||'').split(/[.!?]/).filter(sen => sen.trim().length > 250);
+      return `Found ${bad.length} sentence(s) over 250 characters. Long sentences are hard to follow on screen and slow reading comprehension. Preview: "${bad[0].trim().substring(0,120)}…"`;
+    },
+    fix: () => `Break long sentences at natural conjunctions (and, but, because, which). Each sentence should carry one idea. If a sentence needs a comma and two clauses, it probably wants to be two sentences.`
+  },
+  {
+    id:'no_filler', label:'Avoids passive filler phrases', type:'Critical',
+    test: s => !/(it should be noted|it is important to note|please note that|needless to say)/i.test(s.Content||''),
+    why: (s) => {
+      const match = (s.Content||'').match(/(it should be noted|it is important to note|please note that|needless to say)/i);
+      return `Found "${match ? match[0] : 'filler phrase'}" in the content. This phrase adds no information — it just delays the actual point. Learners learn to skip over these, which means the content after them gets ignored too.`;
+    },
+    fix: () => `Delete the filler phrase and start directly with the information. "It should be noted that voltage must be off before testing" → "Turn off voltage before testing."`
+  },
+  {
+    id:'no_dbl_space', label:'No double spaces in content', type:'Basic',
+    test: s => !/ {2,}/.test(s.Content||''),
+    why: () => `Double spaces detected in the content. These usually come from copy-pasting out of Word or PDFs. They can break formatting when rendered in Articulate or on mobile.`,
+    fix: () => `Do a find-and-replace for double spaces in the source sheet before exporting. Search for two spaces, replace with one.`
+  },
+  {
+    id:'spanish', label:'Spanish translation fields (Content es / Title es) are present', type:'Basic',
+    test: s => (s['Content (es)']||s['Title (es)']||'').trim().length > 3,
+    why: () => `Both "Content (es)" and "Title (es)" fields are empty or missing. Spanish content is required for this course and missing translations block publishing.`,
+    fix: () => `Flag this slide for the translation team. Both the title and full content block need Spanish equivalents before the topic is marked complete.`
+  },
+  {
+    id:'no_all_caps', label:'Title does not use ALL CAPS', type:'Basic',
+    test: s => { const t = (s.Title||''); return t.length < 3 || t !== t.toUpperCase(); },
+    why: (s) => `The title "${(s.Title||'').substring(0,60)}" is written in ALL CAPS. This reads as shouting and looks unprofessional in a learning interface.`,
+    fix: (s) => `Change to sentence case: "${toSentenceCase(s.Title||'')}"`
+  },
+  {
+    id:'real_world', label:'Content references real-world examples or scenarios', type:'Critical',
+    test: s => /(example|scenario|real.world|field|job|technician|tech|service call|customer|system|unit|equipment|install|repair|diagnos|troubleshoot|site|call)/i.test(s.Content||''),
+    why: (s) => {
+      const snippet = (s.Content||'').substring(0,120);
+      return `The content reads like a textbook definition — no technician, no service call, no job-site context. Preview: "${snippet}…" Without a real-world frame, learners don't know why this matters or when to use it.`;
+    },
+    fix: (s) => {
+      const title = (s.Title||'this concept').substring(0,40);
+      return `Open with a job scenario before explaining the concept. E.g. "When a homeowner calls about [problem related to ${title}], the first thing you check is…" — then explain the technical content in that context.`;
+    }
+  },
+  {
+    id:'no_complex_words', label:'Language avoids unnecessarily complex academic words', type:'Basic',
+    test: s => !/(utilize|heretofore|aforementioned|vis-à-vis|ipso facto)/i.test(s.Content||''),
+    why: (s) => {
+      const match = (s.Content||'').match(/(utilize|heretofore|aforementioned|vis-à-vis|ipso facto)/i);
+      return `Found "${match ? match[0] : 'academic word'}" — this is unnecessary jargon. Trade learners read at a practical level; academic language creates distance and confusion.`;
+    },
+    fix: () => `Replace with plain equivalents: "utilize" → "use", "aforementioned" → "this" or just restate the noun, "heretofore" → "until now".`
+  },
+];
+
+function toSentenceCase(str) {
+  if (!str) return str;
+  return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+}
+
+let allTopics = {};
+let currentFilter = 'all';
+
+function setFilter(f, btn) {
+  currentFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderSlides();
+}
+
+function analyzeSlide(row) {
+  const results = CHECKS.map(c => ({ ...c, pass: c.test(row) }));
+  const fails = results.filter(r => !r.pass);
+  const critFails = fails.filter(r => r.type === 'Critical');
+  const score = Math.round(((CHECKS.length - fails.length) / CHECKS.length) * 100);
+  return { results, fails, critFails, score };
+}
+
+function topicScore(rows) {
+  const analyzed = rows.map(r => analyzeSlide(r));
+  return analyzed.length ? Math.round(analyzed.reduce((a,b) => a + b.score, 0) / analyzed.length) : 0;
+}
+
+function topicWorstIssue(rows) {
+  const analyzed = rows.map(r => analyzeSlide(r));
+  const failCounts = {};
+  analyzed.forEach(a => a.fails.forEach(f => { failCounts[f.id] = (failCounts[f.id]||0)+1; }));
+  const sorted = Object.entries(failCounts).sort((a,b)=>b[1]-a[1]);
+  if (!sorted.length) return 'No issues found';
+  const top = sorted[0];
+  const check = CHECKS.find(c => c.id === top[0]);
+  return `${top[1]} slide${top[1]>1?'s':''} fail: ${check ? check.label.toLowerCase() : top[0]}`;
+}
+
+function renderCourseHealth() {
+  const topics = Object.keys(allTopics);
+  const grid = document.getElementById('courseHealthGrid');
+  const summary = document.getElementById('courseSummaryBox');
+
+  grid.innerHTML = topics.map(t => {
+    const score = topicScore(allTopics[t]);
+    const cls = score >= 80 ? 'good' : score >= 50 ? 'warn' : 'bad';
+    const issue = topicWorstIssue(allTopics[t]);
+    return `<div class="health-topic-card ${cls}" onclick="jumpToTopic('${t}')">
+      <div class="health-topic-name">${t}</div>
+      <div class="health-topic-score ${cls}">${score}%</div>
+      <div class="health-topic-issue">${issue}</div>
+    </div>`;
+  }).join('');
+
+  const scores = topics.map(t => topicScore(allTopics[t]));
+  const overall = scores.length ? Math.round(scores.reduce((a,b)=>a+b,0)/scores.length) : 0;
+  const weakTopics = topics.filter(t => topicScore(allTopics[t]) < 60);
+  const strongTopics = topics.filter(t => topicScore(allTopics[t]) >= 80);
+  const totalSlides = topics.reduce((a,t)=>a+allTopics[t].length,0);
+
+  // Find most common failure across whole course
+  const allFailCounts = {};
+  topics.forEach(t => {
+    allTopics[t].forEach(row => {
+      analyzeSlide(row).fails.forEach(f => { allFailCounts[f.id] = (allFailCounts[f.id]||0)+1; });
+    });
+  });
+  const topFail = Object.entries(allFailCounts).sort((a,b)=>b[1]-a[1])[0];
+  const topFailCheck = topFail ? CHECKS.find(c=>c.id===topFail[0]) : null;
+
+  let summaryText = `<strong>Overall course score: ${overall}%</strong> across ${topics.length} topics and ${totalSlides} slides. `;
+  if (strongTopics.length) summaryText += `${strongTopics.join(', ')} ${strongTopics.length===1?'is':'are'} in good shape. `;
+  if (weakTopics.length) summaryText += `${weakTopics.join(', ')} need${weakTopics.length===1?'s':''} significant work before sign-off. `;
+  if (topFailCheck) summaryText += `Most common issue across the whole course: <strong>${topFailCheck.label.toLowerCase()}</strong> (${topFail[1]} slides affected).`;
+
+  summary.innerHTML = summaryText;
+}
+
+function jumpToTopic(name) {
+  document.getElementById('topicSelect').value = name;
+  renderTopic();
+  document.getElementById('topicSelect').scrollIntoView({behavior:'smooth', block:'center'});
+}
+
+function renderCoherence(rows) {
+  const analyzed = rows.map(r => analyzeSlide(r));
+  const container = document.getElementById('coherenceContent');
+
+  // Pacing check
+  const lengths = rows.map(r => (r.Content||'').trim().length);
+  const maxLen = Math.max(...lengths);
+  const minLen = Math.min(...lengths.filter(l=>l>0));
+  const longSlides = rows.map((r,i)=>({i,len:(r.Content||'').length})).filter(x=>x.len>1200);
+  const shortSlides = rows.map((r,i)=>({i,len:(r.Content||'').length})).filter(x=>x.len>0&&x.len<30);
+
+  // Real-world check cluster
+  const rwFails = rows.map((r,i)=>({i,row:r,a:analyzeSlide(r)})).filter(x=>x.a.fails.some(f=>f.id==='real_world'));
+  let rwCluster = '';
+  if (rwFails.length >= 3) {
+    const nums = rwFails.map(x=>`Slide ${x.i+1}`).join(', ');
+    rwCluster = `<div class="coherence-alert"><strong>Real-world framing missing in ${rwFails.length} slides</strong> (${nums}). This section reads too theoretically — learners need job-site context to connect the material to their work.</div>`;
+  }
+
+  // Spanish coverage
+  const missingSpanish = rows.map((r,i)=>i+1).filter((_,i) => !(rows[i]['Content (es)']||rows[i]['Title (es)']||'').trim());
+  // Vocab: check if key words are used consistently vs mixed
+  const objMissing = rows.map((r,i)=>i+1).filter((_,i) => !(rows[i]['Objective Text']||rows[i]['Learning Objective']||'').trim());
+
+  const pacingStatus = (maxLen - minLen > 800) ? 'coh-warn' : 'coh-good';
+  const pacingText = (maxLen - minLen > 800)
+    ? `Uneven — longest slide is ${maxLen} chars, shortest is ${minLen}. Gap of ${maxLen-minLen} chars suggests some slides are overcrowded and others are thin. Review for balance.`
+    : `Reasonable range: ${minLen}–${maxLen} chars. Content length is fairly consistent across slides.`;
+
+  const spanishStatus = missingSpanish.length > 0 ? 'coh-warn' : 'coh-good';
+  const spanishText = missingSpanish.length > 0
+    ? `Missing on ${missingSpanish.length} slide${missingSpanish.length>1?'s':''}: ${missingSpanish.slice(0,5).map(n=>'Slide '+n).join(', ')}${missingSpanish.length>5?'…':''}.`
+    : `All slides have Spanish translation fields populated.`;
+
+  const objStatus = objMissing.length > 0 ? 'coh-warn' : 'coh-good';
+  const objText = objMissing.length > 0
+    ? `${objMissing.length} slide${objMissing.length>1?'s':''} missing objectives: ${objMissing.slice(0,4).map(n=>'Slide '+n).join(', ')}${objMissing.length>4?'…':''}.`
+    : `All slides have learning objectives defined.`;
+
+  const avgScore = analyzed.length ? Math.round(analyzed.reduce((a,b)=>a+b.score,0)/analyzed.length) : 0;
+  const overallStatus = avgScore >= 80 ? 'coh-good' : avgScore >= 50 ? 'coh-warn' : 'coh-bad';
+  const overallText = `${avgScore}% average — ${avgScore>=80?'topic is in good shape overall.':avgScore>=50?'some areas need attention before this topic is ready.':'significant rework needed. Prioritise critical fails first.'}`;
+
+  container.innerHTML = rwCluster + `
+    <div class="coherence-grid">
+      <div class="coherence-item">
+        <div class="coherence-item-label">Content pacing</div>
+        <div class="coherence-item-val ${pacingStatus}">${pacingText}</div>
+      </div>
+      <div class="coherence-item">
+        <div class="coherence-item-label">Learning objectives</div>
+        <div class="coherence-item-val ${objStatus}">${objText}</div>
+      </div>
+      <div class="coherence-item">
+        <div class="coherence-item-label">Spanish translation</div>
+        <div class="coherence-item-val ${spanishStatus}">${spanishText}</div>
+      </div>
+      <div class="coherence-item">
+        <div class="coherence-item-label">Topic quality score</div>
+        <div class="coherence-item-val ${overallStatus}">${overallText}</div>
+      </div>
+    </div>`;
+}
+
+function renderTopic() {
+  const topic = document.getElementById('topicSelect').value;
+  const rows = allTopics[topic] || [];
+  renderMetrics(rows);
+  renderCoherence(rows);
+  renderSlides();
+}
+
+function renderMetrics(rows) {
+  const analyzed = rows.map(r => analyzeSlide(r));
+  const avg = analyzed.length ? Math.round(analyzed.reduce((a,b) => a + b.score, 0) / analyzed.length) : 0;
+  const passed = analyzed.filter(r => r.fails.length === 0).length;
+  const critSlides = analyzed.filter(r => r.critFails.length > 0).length;
+  const totalIssues = analyzed.reduce((a,b) => a + b.fails.length, 0);
+  const scoreClass = avg >= 80 ? 'pass' : avg >= 50 ? 'warn' : 'fail';
+  const barClass = avg >= 80 ? 'high' : avg >= 50 ? 'medium' : 'low';
+  document.getElementById('metrics').innerHTML = `
+    <div class="metric">
+      <div class="metric-label">Topic quality score</div>
+      <div class="metric-val ${scoreClass}">${avg}%</div>
+      <div class="progress-bar"><div class="progress-fill ${barClass}" style="width:${avg}%"></div></div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Slides passed</div>
+      <div class="metric-val pass">${passed} / ${rows.length}</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Slides with critical fails</div>
+      <div class="metric-val fail">${critSlides}</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Total issues found</div>
+      <div class="metric-val warn">${totalIssues}</div>
+    </div>`;
+}
+
+function renderSlides() {
+  const topic = document.getElementById('topicSelect').value;
+  const rows = allTopics[topic] || [];
+  const list = document.getElementById('slidesList');
+  list.innerHTML = '';
+  let shown = 0;
+
+  rows.forEach((row, i) => {
+    const a = analyzeSlide(row);
+    if (currentFilter === 'issues' && a.fails.length === 0) return;
+    if (currentFilter === 'critical' && a.critFails.length === 0) return;
+    if (currentFilter === 'pass' && a.fails.length > 0) return;
+    shown++;
+
+    const cardClass = a.critFails.length > 0 ? 'has-issues' : a.fails.length > 0 ? 'warnings' : 'good';
+    const title = (row.Title || row.title || '(untitled slide)').substring(0,60);
+    const preview = (row.Content || row.content || '').substring(0,90);
+    const scoreClass = a.score >= 80 ? 'high' : a.score >= 50 ? 'medium' : 'low';
+
+    let statusBadge = '';
+    if (a.fails.length === 0) {
+      statusBadge = `<span class="badge badge-pass">✓ Passed</span>`;
+    } else if (a.critFails.length > 0) {
+      statusBadge = `<span class="badge badge-crit">${a.critFails.length} critical</span>`;
+      if (a.fails.length > a.critFails.length) statusBadge += ` <span class="badge badge-warn">${a.fails.length - a.critFails.length} basic</span>`;
+    } else {
+      statusBadge = `<span class="badge badge-warn">${a.fails.length} issues</span>`;
+    }
+
+    // Build check blocks — fails with feedback, passes collapsed
+    const failBlocks = a.results.filter(r => !r.pass).map(r => {
+      const whyText = r.why ? r.why(row) : `This check failed.`;
+      const fixText = r.fix ? r.fix(row) : `Review and update this field.`;
+      const topClass = r.type === 'Critical' ? 'fail-top-crit' : 'fail-top-basic';
+      const blockClass = r.type === 'Critical' ? 'fail-crit' : 'fail-basic';
+      return `<div class="check-block ${blockClass}">
+        <div class="check-top ${topClass}">
+          <span class="check-icon-v2" style="color:${r.type==='Critical'?'#c0392b':'#b86e00'}">✗</span>
+          <span class="check-label-v2">${r.label}</span>
+          <span class="check-type-tag ${r.type === 'Critical' ? 'critical' : 'basic'}">${r.type}</span>
+        </div>
+        <div class="check-feedback">
+          <div class="feedback-why">${whyText}</div>
+          <div class="feedback-fix">
+            <div class="feedback-fix-label">How to fix</div>
+            <div class="feedback-fix-text">${fixText}</div>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+
+    const passBlocks = a.results.filter(r => r.pass).map(r => `
+      <div class="check-block">
+        <div class="check-top pass-top">
+          <span class="check-icon-v2" style="color:#2d7a3a">✓</span>
+          <span class="check-label-v2 muted">${r.label}</span>
+          <span class="check-type-tag ${r.type === 'Critical' ? 'critical' : 'basic'}">${r.type}</span>
+        </div>
+      </div>`).join('');
+
+    const contentBox = (row.Content || '').trim()
+      ? `<div style="margin-top:14px"><div class="section-label">Content preview</div><div class="content-preview-box">${(row.Content||'').substring(0,300)}</div></div>` : '';
+
+    const graphicBox = (row['Graphic Definition / Specification'] || row['Graphic Definition'] || '').trim()
+      ? `<div style="margin-top:10px"><div class="section-label">Graphic definition preview</div><div class="content-preview-box">${(row['Graphic Definition / Specification']||row['Graphic Definition']||'').substring(0,200)}</div></div>` : '';
+
+    const card = document.createElement('div');
+    card.className = `slide-card ${cardClass}`;
+    card.innerHTML = `
+      <div class="slide-header" onclick="toggleCard(this)">
+        <span class="slide-num">Slide ${i+1}</span>
+        <span class="slide-title">${title}</span>
+        <span class="slide-preview">${preview}…</span>
+        <div class="badges"><span class="score-ring ${scoreClass}">${a.score}%</span>${statusBadge}</div>
+        <span class="chevron">▾</span>
+      </div>
+      <div class="slide-details">
+        ${a.fails.length > 0 ? `<div class="checks-section" style="margin-top:14px"><div class="checks-section-label">${a.fails.length} issue${a.fails.length>1?'s':''} to fix</div>${failBlocks}</div>` : ''}
+        ${a.results.filter(r=>r.pass).length > 0 ? `<div class="checks-section" style="margin-top:12px"><div class="checks-section-label">Passed checks</div>${passBlocks}</div>` : ''}
+        ${contentBox}
+        ${graphicBox}
+      </div>`;
+    list.appendChild(card);
+  });
+
+  document.getElementById('emptyState').style.display = shown === 0 ? 'block' : 'none';
+  list.style.display = shown === 0 ? 'none' : 'flex';
+}
+
+function toggleCard(header) {
+  const details = header.nextElementSibling;
+  const chevron = header.querySelector('.chevron');
+  const isOpen = details.classList.contains('open');
+  details.classList.toggle('open', !isOpen);
+  chevron.classList.toggle('open', !isOpen);
+}
+
+function processWorkbook(wb) {
+  allTopics = {};
+  const topicSheets = wb.SheetNames.filter(n => /topic/i.test(n));
+  const sheetsToUse = topicSheets.length > 0
+    ? topicSheets
+    : wb.SheetNames.filter(n => !/(outline|moodle|revised|master|business|graphics|assess|transla|articulate|digitiz)/i.test(n));
+
+  sheetsToUse.forEach(n => {
+    const rows = XLSX.utils.sheet_to_json(wb.Sheets[n], { defval: '' });
+    if (rows.length > 0) allTopics[n] = rows;
+  });
+
+  if (Object.keys(allTopics).length === 0) {
+    wb.SheetNames.forEach(n => {
+      const rows = XLSX.utils.sheet_to_json(wb.Sheets[n], { defval: '' });
+      if (rows.length > 1) allTopics[n] = rows;
+    });
+  }
+
+  const sel = document.getElementById('topicSelect');
+  sel.innerHTML = Object.keys(allTopics).map(k => `<option value="${k}">${k}</option>`).join('');
+  document.getElementById('appContent').style.display = 'block';
+  renderCourseHealth();
+  renderTopic();
+}
+
+document.getElementById('fileInput').addEventListener('change', function(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  document.getElementById('fileInfo').textContent = 'Reading: ' + file.name + '...';
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    const data = new Uint8Array(ev.target.result);
+    const wb = XLSX.read(data, { type: 'array' });
+    document.getElementById('fileInfo').textContent = '✓ Loaded: ' + file.name + ' (' + wb.SheetNames.length + ' sheets found)';
+    processWorkbook(wb);
+  };
+  reader.readAsArrayBuffer(file);
+});
+
+const zone = document.getElementById('uploadZone');
+zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag'); });
+zone.addEventListener('dragleave', () => zone.classList.remove('drag'));
+zone.addEventListener('drop', e => {
+  e.preventDefault();
+  zone.classList.remove('drag');
+  const file = e.dataTransfer.files[0];
+  if (file) {
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    document.getElementById('fileInput').files = dt.files;
+    document.getElementById('fileInput').dispatchEvent(new Event('change'));
+  }
+});
+</script>
+</body>
+</html>
