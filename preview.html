@@ -1,0 +1,244 @@
+<script>
+const CHECK_WEIGHTS = {
+  Critical: 15,
+  Basic: 8
+};
+
+// --- PARSE (same but slightly cleaner)
+function parseSlides(raw) {
+  const text = raw.replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim();
+  const lines = text.split('\n');
+
+  const slides = [];
+  let i = 0;
+
+  while (i < lines.length) {
+    const line = lines[i].trim();
+    if (!line) { i++; continue; }
+
+    const isTitle = line.length < 100;
+
+    if (isTitle) {
+      const title = line;
+      const contentLines = [];
+      i++;
+
+      while (i < lines.length) {
+        const next = lines[i].trim();
+        if (!next) { i++; continue; }
+
+        if (next.length < 100 && contentLines.length > 0) break;
+
+        contentLines.push(next);
+        i++;
+      }
+
+      if (contentLines.length > 0) {
+        slides.push({ title, content: contentLines.join(' ') });
+      }
+    } else i++;
+  }
+
+  return slides;
+}
+
+// --- SMART ANALYZER
+function analyzeSlide(slide, courseType, index, allSlides) {
+  const content = slide.content;
+  const lower = content.toLowerCase();
+  const issues = [];
+
+  const sentences = content.split(/[.!?]/).map(s => s.trim()).filter(Boolean);
+  const wordCount = content.split(/\s+/).length;
+
+  function addIssue(type, category, criterion, problem, fix) {
+    issues.push({ type, category, criterion, problem, fix });
+  }
+
+  // 1. Engagement
+  if (courseType !== "static") {
+    if (!lower.includes("imagine") && !lower.includes("when") && !content.includes("?")) {
+      addIssue(
+        "Critical",
+        "Engagement",
+        "Does the script begin with a relatable hook or real-world scenario?",
+        "The slide jumps straight into explanation without a relatable situation.",
+        "Start with a real-world scenario like: 'Imagine you're diagnosing a system where...'"
+      );
+    }
+  }
+
+  // 2. Tone (no "you")
+  if (!lower.includes("you")) {
+    addIssue(
+      "Critical",
+      "Tone",
+      "Did you write in a way that speaks directly to the learner?",
+      "The slide does not address the learner directly.",
+      "Use 'you' to make the content more engaging and instructional."
+    );
+  }
+
+  // 3. Long sentences detection
+  const longSentences = sentences.filter(s => s.length > 120);
+  if (longSentences.length) {
+    addIssue(
+      "Basic",
+      "Language Quality",
+      "Are the sentences short, clear, and interesting to read?",
+      `Example of long sentence: "${longSentences[0].slice(0, 100)}..."`,
+      "Break long sentences into shorter, clearer ones."
+    );
+  }
+
+  // 4. Too short (lack depth)
+  if (wordCount < 12) {
+    addIssue(
+      "Basic",
+      "Content Accuracy",
+      "Does each slide explain why the content matters?",
+      "The explanation is too brief.",
+      "Add why this matters in real HVAC work."
+    );
+  }
+
+  // 5. No real-world example
+  if (!lower.includes("for example") && !lower.includes("scenario") && !lower.includes("in real")) {
+    addIssue(
+      "Critical",
+      "Content Accuracy",
+      "Are real-world examples used?",
+      "No real-world example provided.",
+      "Add a practical field example."
+    );
+  }
+
+  // 6. Verbosity
+  if (wordCount > 80) {
+    addIssue(
+      "Basic",
+      "Language Quality",
+      "Did you remove unnecessary detail?",
+      "Content is too long for a single slide.",
+      "Trim content to essential points."
+    );
+  }
+
+  // 7. Flow check (basic intelligence)
+  if (index > 0) {
+    const prev = allSlides[index - 1].title.toLowerCase();
+    if (slide.title.toLowerCase() === prev) {
+      addIssue(
+        "Basic",
+        "Instructional Flow",
+        "Is there logical progression?",
+        "Slide title repeats previous concept.",
+        "Ensure progression between slides."
+      );
+    }
+  }
+
+  // --- SCORE
+  let score = 100;
+  issues.forEach(i => score -= CHECK_WEIGHTS[i.type]);
+  if (score < 0) score = 0;
+
+  // --- SUMMARY
+  let summary;
+  if (score > 80) {
+    summary = "Strong slide with clear structure and communication. Minor refinements could improve engagement.";
+  } else if (score > 50) {
+    summary = "The slide communicates the idea but lacks engagement, clarity, or real-world grounding.";
+  } else {
+    summary = "This slide needs improvement in structure, clarity, and instructional effectiveness.";
+  }
+
+  // --- REWRITE ENGINE (actually improved now)
+  let rewrite = "";
+
+  if (score < 75) {
+    const improved = sentences
+      .map(s => {
+        if (s.length > 120) {
+          return s.slice(0, 100) + "...";
+        }
+        return s;
+      })
+      .join(". ");
+
+    rewrite =
+`Imagine you're on a real HVAC job.
+
+${improved}
+
+This matters because it directly affects how you troubleshoot, work safely, and deliver efficient results in the field.`;
+  }
+
+  return { summary, score, issues, rewrite };
+}
+
+// --- MAIN REVIEW
+async function runReview() {
+  const raw = document.getElementById('pasteInput').value.trim();
+  if (!raw) return alert("Paste slides first.");
+
+  const slides = parseSlides(raw);
+  if (!slides.length) return alert("Slides not detected.");
+
+  const courseType = document.getElementById('courseType').value;
+
+  const btn = document.getElementById('reviewBtn');
+  const spin = document.getElementById('spin');
+  const txt = document.getElementById('btnTxt');
+
+  btn.disabled = true;
+  spin.style.display = 'block';
+
+  const panel = document.getElementById('rightPanel');
+  panel.innerHTML = '';
+
+  slides.forEach((_, i) => {
+    panel.innerHTML += `<div class="skel-card" id="sk${i+1}"></div>`;
+  });
+
+  let totalScore = 0;
+  let crit = 0;
+  let basic = 0;
+
+  for (let i = 0; i < slides.length; i++) {
+    txt.textContent = `Analyzing slide ${i+1}...`;
+
+    const res = analyzeSlide(slides[i], courseType, i, slides);
+
+    totalScore += res.score;
+    crit += res.issues.filter(x => x.type === "Critical").length;
+    basic += res.issues.filter(x => x.type === "Basic").length;
+
+    document.getElementById(`sk${i+1}`).outerHTML = renderCard(slides[i], res, i+1);
+  }
+
+  const avg = Math.round(totalScore / slides.length);
+
+  const overview = `
+  <div class="overview">
+    <div class="ov-stat"><div class="ov-val">${slides.length}</div><div class="ov-lbl">Slides</div></div>
+    <div class="ov-sep"></div>
+    <div class="ov-stat"><div class="ov-val">${avg}%</div><div class="ov-lbl">Avg score</div></div>
+    <div class="ov-sep"></div>
+    <div class="ov-stat"><div class="ov-val">${crit}</div><div class="ov-lbl">Critical</div></div>
+    <div class="ov-sep"></div>
+    <div class="ov-stat"><div class="ov-val">${basic}</div><div class="ov-lbl">Basic</div></div>
+  </div>`;
+
+  panel.insertAdjacentHTML('afterbegin', overview);
+
+  btn.disabled = false;
+  spin.style.display = 'none';
+  txt.textContent = "Review All Slides →";
+}
+
+// --- EVENT
+document.addEventListener("DOMContentLoaded", () => {
+  document.getElementById("reviewBtn").addEventListener("click", runReview);
+});
+</script>
